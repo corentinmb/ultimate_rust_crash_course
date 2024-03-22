@@ -1,12 +1,12 @@
-use cargo::frame::new_frame;
-use cargo::{frame, render};
+use cargo::frame::{new_frame, Drawable};
+use cargo::player::Player;
+use cargo::render;
 use crossterm::cursor::{Hide, Show};
 use crossterm::event::{Event, KeyCode};
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::{event, terminal, ExecutableCommand};
 use rusty_audio::Audio;
 use std::error::Error;
-use std::io::Stdout;
 use std::sync::mpsc;
 use std::time::Duration;
 use std::{io, thread};
@@ -46,9 +46,10 @@ fn main() -> InvadersResult {
         }
     });
 
+    let mut player = Player::new();
     // Game loop
     'gameloop: loop {
-        let curr_frame = new_frame();
+        let mut curr_frame = new_frame();
 
         while event::poll(Duration::default())? {
             if let Event::Key(key) = event::read()? {
@@ -57,11 +58,18 @@ fn main() -> InvadersResult {
                         audio.play("lose");
                         break 'gameloop;
                     }
+                    KeyCode::Left => {
+                        player.move_left();
+                    }
+                    KeyCode::Right => {
+                        player.move_right();
+                    }
                     _ => {}
                 }
             }
         }
         // Draw & render
+        player.draw(&mut curr_frame);
         let _ = render_tx.send(curr_frame);
         thread::sleep(Duration::from_millis(1));
     }
