@@ -8,7 +8,7 @@ use crossterm::{event, terminal, ExecutableCommand};
 use rusty_audio::Audio;
 use std::error::Error;
 use std::sync::mpsc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use std::{io, thread};
 
 pub type InvadersResult = Result<(), Box<dyn Error>>;
@@ -47,8 +47,11 @@ fn main() -> InvadersResult {
     });
 
     let mut player = Player::new();
+    let mut instant = Instant::now();
     // Game loop
     'gameloop: loop {
+        let delta = instant.elapsed();
+        instant = Instant::now();
         let mut curr_frame = new_frame();
 
         while event::poll(Duration::default())? {
@@ -61,6 +64,11 @@ fn main() -> InvadersResult {
                     KeyCode::Left => {
                         player.move_left();
                     }
+                    KeyCode::Char(' ') | KeyCode::Enter => {
+                        if player.shoot() {
+                            audio.play("pew");
+                        }
+                    }
                     KeyCode::Right => {
                         player.move_right();
                     }
@@ -68,6 +76,10 @@ fn main() -> InvadersResult {
                 }
             }
         }
+
+        // Update the timers
+        player.update(delta);
+
         // Draw & render
         player.draw(&mut curr_frame);
         let _ = render_tx.send(curr_frame);
