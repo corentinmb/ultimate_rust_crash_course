@@ -1,13 +1,17 @@
 use cargo::frame::{new_frame, Drawable};
+use cargo::invaders::Invader;
 use cargo::player::Player;
 use cargo::render;
+use cargo::shot::Shot;
 use crossterm::cursor::{Hide, Show};
 use crossterm::event::{Event, KeyCode};
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::{event, terminal, ExecutableCommand};
+use rand::{thread_rng, Rng};
 use rusty_audio::Audio;
 use std::error::Error;
 use std::sync::mpsc;
+use std::thread::current;
 use std::time::{Duration, Instant};
 use std::{io, thread};
 
@@ -47,12 +51,17 @@ fn main() -> InvadersResult {
     });
 
     let mut player = Player::new();
+    let mut invaders = Vec::new();
     let mut instant = Instant::now();
     // Game loop
     'gameloop: loop {
         let delta = instant.elapsed();
         instant = Instant::now();
         let mut curr_frame = new_frame();
+        let mut rng = thread_rng();
+        if rng.gen_bool(1.0 / 1000.0) {
+            invaders.push(Invader::new());
+        }
 
         while event::poll(Duration::default())? {
             if let Event::Key(key) = event::read()? {
@@ -79,9 +88,41 @@ fn main() -> InvadersResult {
 
         // Update the timers
         player.update(delta);
+        invaders
+            .iter_mut()
+            .for_each(|mut invader| invader.update(delta));
 
         // Draw & render
+        invaders
+            .iter_mut()
+            .find(|invader| invader.y == player.y - 1 && invader.x == player.x)
+            .map(|invader| {
+                invader.exploding = true;
+                player.exploding = true;
+            });
+
+        invaders
+            .iter_mut()
+            .find(|invader| {
+                player
+                    .shots
+                    .iter()
+                    .any(|shot| shot.y - 1 == invader.y && shot.x == invader.x)
+            })
+            .map(|invader| {
+                player
+                    .shots
+                    .iter_mut()
+                    .find(|shot| shot.y - 1 == invader.y)
+                    .unwrap()
+                    .exploding = true;
+                invader.exploding = true;
+            });
+
         player.draw(&mut curr_frame);
+        invaders
+            .iter()
+            .for_each(|invader| invader.draw(&mut curr_frame));
         let _ = render_tx.send(curr_frame);
         thread::sleep(Duration::from_millis(1));
     }

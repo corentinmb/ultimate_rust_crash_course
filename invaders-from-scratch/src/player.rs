@@ -6,7 +6,8 @@ use std::time::Duration;
 pub struct Player {
     pub x: usize,
     pub y: usize,
-    shots: Vec<Shot>,
+    pub exploding: bool,
+    pub shots: Vec<Shot>,
 }
 
 impl Player {
@@ -14,6 +15,7 @@ impl Player {
         Self {
             x: NUM_COLS / 2,
             y: NUM_ROWS - 1,
+            exploding: false,
             shots: Vec::new(),
         }
     }
@@ -49,7 +51,7 @@ impl Player {
 
 impl Drawable for Player {
     fn draw(&self, frame: &mut Frame) {
-        frame[self.x][self.y] = "A";
+        frame[self.x][self.y] = if self.exploding { "*" } else { "A" };
         for shot in self.shots.iter() {
             shot.draw(frame)
         }
